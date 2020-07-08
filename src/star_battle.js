@@ -40,3 +40,89 @@ function get_game_as_ascii() {
 }
 get_game_as_ascii()
 */
+
+/*
+
+Methods we want
+For a given cell, look up row, column, and region. (region is the main one that's interesting).
+For a given board, give the set of regions, specifying which cells are in which regions.
+
+*/
+
+const DIRECTIONS = [
+  [0, 1],
+  [0, -1],
+  [-1, 0],
+  [1, 0],
+]
+
+/**
+ * Get regions of the specified board.
+ * board is a multiline string.
+ */
+function get_regions(board_arg) {
+  const board = board_arg.trim();
+  const rows = board.split('\n');
+  const sidelen = (rows[0].length-1)/2;
+  const discovered = Array.from(Array(sidelen), () => Array(sidelen).fill(false));
+  const regions = [];
+
+  const get_region = (rows, i, j) => {
+    const result = [];
+    const pending = [[i, j]];
+    discovered[i][j] = true;
+    while (pending.length > 0) {
+      const [curri, currj] = pending.pop();
+
+      const adji = 2*curri+1;
+      const adjj = 2*currj+1;
+      const neighbors = [];
+      for (const [di, dj] of DIRECTIONS) {
+        if (rows[adji+di].charAt(adjj+dj) === ' ') {
+          neighbors.push([curri+di, currj+dj]);
+        }
+      }
+      result.push([curri, currj]);
+      for (const [ni, nj] of neighbors) {
+        if (discovered[ni][nj]) continue;
+        discovered[ni][nj] = true;
+        pending.push([ni,nj]);
+      }
+    }
+    return result;
+  }
+
+  for (let i=0;i<sidelen;++i) {
+    for (let j=0;j<sidelen;++j) {
+      if (discovered[i][j]) continue;
+
+      const region = get_region(rows, i, j);
+      regions.push(region);
+    }
+  }
+  return regions;
+}
+
+function generate_lookup(regions) {
+  let maxr = 0;
+  let maxc = 0;
+  for (const region of regions) {
+    for (const [r, c] of region) {
+      if (maxr < r) maxr = r;
+      if (maxc < c) maxc = c;
+    }
+  }
+  const sidelen = maxr+1;
+
+  const grid = Array.from(Array(sidelen), () => Array(sidelen).fill(''));
+  for (let i=0;i<regions.length;++i) {
+    const region = regions[i];
+    const name = String.fromCodePoint('A'.codePointAt(0)+i);
+    for (const [r,c] of region) {
+      grid[r][c] = name;
+    }
+  }
+  return grid;
+}
+
+export { get_regions, generate_lookup };

@@ -1,7 +1,6 @@
+import { get_regions, generate_lookup } from './star_battle.js'
 
-
-test('properly handles initial simple deductions', () => {
-  // https://www.puzzle-star-battle.com/?pl=0d631430bd70519621dd125fb3110fcd5f0568e61168f
+test('retrieve distinct regions', () => {
   const game_str = `
 +-+-+-+-+-+-+-+-+-+-+
 |       |       |   |
@@ -24,23 +23,69 @@ test('properly handles initial simple deductions', () => {
 + +-+-+ +-+-+ +-+-+ +
 | |         |       |
 +-+-+-+-+-+-+-+-+-+-+`
-  const expected_clear_simple_deductions = [
-    [1, 6], [1, 8],
-    [2, 0], [2, 2],
-    [3, 0], [3, 2],
-    [5, 1],
-    [6, 6],
-    [9, 1],
-  ];
-  const game = new StarBattleGame(game_str);
-  expect(game.find_contradictions()).toHaveLength(0);
 
-  // We want to say, these are known:
-  const simple_deductions = game.get_simple_deduction_results();
-  // for (let [r, c] of expected_clear_simple_deductions) {
-  //   expect(simple_deductions?.get(r)?.get(c)).
-  // }
+  const regions = get_regions(game_str);
+  expect(regions).toHaveLength(10);
+
+  const region_lookup = generate_lookup(regions);
+  expect(region_lookup[0][0] === 'A');
+
+  console.log(region_lookup.map(a => a.join('')).join('\n'));
 });
+
+/*
+Can I get it to recognize when stars are all accounted for in a
+region, so all the other cells must be clear? E.g., rows 1 through 4
+cover 4 different regions plus some others. Then the other cells all must be clear outside of those 4 regions.
+
+clear vs star. try both, see if they both force some other cell to be something. this should also mean that setting that other cell to be the opposite should immediately contradict.
+
+deconstructing a region into two regions. there are 2 stars in this set of cells. => there is one star in this set of cells, and one star in this other set of cells
+*/
+
+// hard puzzle: https://www.puzzle-star-battle.com/?pl=80482e31a36857cc9238ded65b15f1685f0656d096e09
+
+// test('properly handles initial simple deductions', () => {
+//   // https://www.puzzle-star-battle.com/?pl=0d631430bd70519621dd125fb3110fcd5f0568e61168f
+//   const game_str = `
+// +-+-+-+-+-+-+-+-+-+-+
+// |       |       |   |
+// + +-+-+ + +-+ +-+   +
+// | |   | | | | | |   |
+// + +-+ + + + +-+ +-+ +
+// | | | | | |       | |
+// + + + +-+ +-+-+-+-+ +
+// | | |       |       |
+// + + +-+   +-+       +
+// | |   |   | |       |
+// + +-+ +-+-+ +-+-+   +
+// |   | |     |   |   |
+// + +-+-+-+-+ +-+ +-+-+
+// | | |     |   | |   |
+// +-+ +     +-+-+ +-+ +
+// |   |         |   | |
+// +   +-+ +-+-+-+   + +
+// |     | |     |   | |
+// + +-+-+ +-+-+ +-+-+ +
+// | |         |       |
+// +-+-+-+-+-+-+-+-+-+-+`
+//   const expected_clear_simple_deductions = [
+//     [1, 6], [1, 8],
+//     [2, 0], [2, 2],
+//     [3, 0], [3, 2],
+//     [5, 1],
+//     [6, 6],
+//     [9, 1],
+//   ];
+//   const game = new StarBattleGame(game_str);
+//   expect(game.find_contradictions()).toHaveLength(0);
+
+//   // We want to say, these are known:
+//   const simple_deductions = game.get_simple_deduction_results();
+//   // for (let [r, c] of expected_clear_simple_deductions) {
+//   //   expect(simple_deductions?.get(r)?.get(c)).
+//   // }
+// });
 
 
 /*

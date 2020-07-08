@@ -2,8 +2,6 @@ import React from 'react';
 import logo from './logo.svg';
 import './App.css';
 
-const SIDE_LENGTH = 3;
-
 // we can represent state in a number of ways. A relatively sparse representation is just as a sequence of moves and a side length.
 const moves = [
   ["X", 0, 0],
@@ -11,20 +9,13 @@ const moves = [
   ["X", 0, 1],
 ];
 
-function tokey(row, col) {
-  return row*SIDE_LENGTH+col;
-}
-
-function fromkey(k) {
-  const col = k % SIDE_LENGTH;
-  return [(k-col) / SIDE_LENGTH, col];
-}
 
 class App extends React.Component {
   constructor(props) {
     super(props);
+    this.side_length = 10;
     this.state = {
-      cells: Array(9).fill(''),
+      cells: Array(this.side_length*this.side_length).fill(''),
       lookup_array: ["A", "B", "B", "A", "C", "B", "B", "B", "B"]
     };
     this.isMouseDown = false;
@@ -34,6 +25,16 @@ class App extends React.Component {
     }
   }
 
+  tokey(row, col) {
+    return row*this.side_length+col;
+  }
+
+  fromkey(k) {
+    const col = k % this.side_length;
+    return [(k-col) / this.side_length, col];
+  }
+
+  // TODO(2020/07/08): this is a mess.
   handleOnMouseDown(event) {
     if (this.isMouseDown) {
       return;
@@ -50,7 +51,7 @@ class App extends React.Component {
       const col = parseInt(elt.getAttribute('data-col'));
       const cells = this.state.cells.slice();
       // mark row col with the proper symbol
-      cells[tokey(row, col)] = symbol;
+      cells[this.tokey(row, col)] = symbol;
       this.setState({cells: cells});
     }
 
@@ -62,7 +63,7 @@ class App extends React.Component {
     // event.buttons === 2 -> right click
     // event.buttons === 4 -> middle click
 
-
+    // TODO(2020/07/08): Consider using mouseenter
     const onMouseMove = (event) => {
       const clientx = event.clientX;
       const clienty = event.clientY;
@@ -72,7 +73,7 @@ class App extends React.Component {
         const col = parseInt(elt.getAttribute('data-col'));
         const cells = this.state.cells.slice();
         // mark row col with the proper symbol
-        cells[tokey(row, col)] = symbol;
+        cells[this.tokey(row, col)] = symbol;
         this.setState({cells: cells});
       }
     };
@@ -88,36 +89,32 @@ class App extends React.Component {
   }
 
   render() {
-    const m = new Map();
-    for (const [symb, row, col] of moves) {
-      m.set(tokey(row, col), symb);
-    }
     const cells = this.state.cells.slice();
-    const lookup = Array.from(Array(SIDE_LENGTH), (_v, row) => this.state.lookup_array.slice(row*SIDE_LENGTH, (row+1)*SIDE_LENGTH));
+    const lookup = Array.from(Array(this.side_length), (_v, row) => this.state.lookup_array.slice(row*this.side_length, (row+1)*this.side_length));
     const table_rows = Array.of(
-      <tr>
-        <td />
-        {Array.from(Array(SIDE_LENGTH), (_v, col) => {
+      <tr key="-1">
+        <td key="-2" />
+        {Array.from(Array(this.side_length), (_v, col) => {
           return <th key={col}>{col+1}</th>
         })}
       </tr>
-    ).concat(Array.from(Array(SIDE_LENGTH), (_v, row) => {
+    ).concat(Array.from(Array(this.side_length), (_v, row) => {
       return (
         <tr key={row}>
           <th key="-1">{row+1}</th>
-          {Array.from(Array(SIDE_LENGTH), (_v, col) => {
+          {Array.from(Array(this.side_length), (_v, col) => {
             const classes = [];
             if (row === 0 || (row !== 0 && lookup[row][col] !== lookup[row-1][col]))
               classes.push("bt");
-            if (row === SIDE_LENGTH-1 || (row !== SIDE_LENGTH-1 && lookup[row][col] !== lookup[row+1][col]))
+            if (row === this.side_length-1 || (row !== this.side_length-1 && lookup[row][col] !== lookup[row+1][col]))
               classes.push("bb");
             if (col === 0 || (col !== 0 && lookup[row][col] !== lookup[row][col-1]))
               classes.push("bl");
-            if (col === SIDE_LENGTH-1 || (col !== SIDE_LENGTH-1 && lookup[row][col] !== lookup[row][col+1]))
+            if (col === this.side_length-1 || (col !== this.side_length-1 && lookup[row][col] !== lookup[row][col+1]))
               classes.push("br");
             return <td data-row={row} data-col={col} data-region={lookup[row][col]} key={col} className={classes.join(' ')}
                        onMouseDown={this.handleOnMouseDown}>
-                     {cells[tokey(row, col)]}
+                     {cells[this.tokey(row, col)]}
                    </td>;
           })}
         </tr>
