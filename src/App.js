@@ -20,51 +20,119 @@ function fromkey(k) {
   return [(k-col) / SIDE_LENGTH, col];
 }
 
-
-function App() {
-  const m = new Map();
-  for (const [symb, row, col] of moves) {
-    m.set(tokey(row, col), symb);
+class App extends React.Component {
+  constructor(props) {
+    super(props);
+    this.state = {
+      cells: Array(9).fill(''),
+      lookup_array: ["A", "B", "B", "A", "C", "B", "B", "B", "B"]
+    };
+    this.isMouseDown = false;
+    this.handleOnMouseDown = this.handleOnMouseDown.bind(this);
+    window.oncontextmenu = (e) => {
+      e.preventDefault();
+    }
   }
-  const lookup = [["A", "B", "B"], ["A", "C", "B"], ["B", "B", "B"]];
 
-  const table_rows = Array.of(
-    <tr>
-      <td />
-      {Array.from(Array(SIDE_LENGTH), (_v, col) => {
-        return <th key={col}>{col+1}</th>
-      })}
-    </tr>
-  ).concat(Array.from(Array(SIDE_LENGTH), (_v, row) => {
-    return (
-      <tr key={row}>
-        <th key="-1">{row+1}</th>
+  handleOnMouseDown(event) {
+    if (this.isMouseDown) {
+      return;
+    }
+    this.isMouseDown = true;
+    const symbol = (
+      (event.buttons === 1) ? "*" :
+        ((event.buttons === 2) ? "." : ""));
+    const clientx = event.clientX;
+    const clienty = event.clientY;
+    const elt = document.elementFromPoint(clientx, clienty);
+    if (elt.tagName === 'TD') {
+      const row = parseInt(elt.getAttribute('data-row'));
+      const col = parseInt(elt.getAttribute('data-col'));
+      const cells = this.state.cells.slice();
+      // mark row col with the proper symbol
+      cells[tokey(row, col)] = symbol;
+      this.setState({cells: cells});
+    }
+
+    // event.button === 0 -> left click
+    // event.button === 1 -> middle click
+    // event.button === 2 -> right click
+
+    // event.buttons === 1 -> left click
+    // event.buttons === 2 -> right click
+    // event.buttons === 4 -> middle click
+
+
+    const onMouseMove = (event) => {
+      const clientx = event.clientX;
+      const clienty = event.clientY;
+      const elt = document.elementFromPoint(clientx, clienty);
+      if (elt.tagName === 'TD') {
+        const row = parseInt(elt.getAttribute('data-row'));
+        const col = parseInt(elt.getAttribute('data-col'));
+        const cells = this.state.cells.slice();
+        // mark row col with the proper symbol
+        cells[tokey(row, col)] = symbol;
+        this.setState({cells: cells});
+      }
+    };
+    document.addEventListener('mousemove', onMouseMove);
+    document.addEventListener(
+      'mouseup',
+      () => {
+        document.removeEventListener('mousemove', onMouseMove);
+        this.isMouseDown = false;
+      },
+      {once: true},
+    );
+  }
+
+  render() {
+    const m = new Map();
+    for (const [symb, row, col] of moves) {
+      m.set(tokey(row, col), symb);
+    }
+    const cells = this.state.cells.slice();
+    const lookup = Array.from(Array(SIDE_LENGTH), (_v, row) => this.state.lookup_array.slice(row*SIDE_LENGTH, (row+1)*SIDE_LENGTH));
+    const table_rows = Array.of(
+      <tr>
+        <td />
         {Array.from(Array(SIDE_LENGTH), (_v, col) => {
-          const classes = [];
-          if (row === 0 || (row !== 0 && lookup[row][col] !== lookup[row-1][col]))
-            classes.push("bt");
-          if (row === SIDE_LENGTH-1 || (row !== SIDE_LENGTH-1 && lookup[row][col] !== lookup[row+1][col]))
-            classes.push("bb");
-          if (col === 0 || (col !== 0 && lookup[row][col] !== lookup[row][col-1]))
-            classes.push("bl");
-          if (col === SIDE_LENGTH-1 || (col !== SIDE_LENGTH-1 && lookup[row][col] !== lookup[row][col+1]))
-            classes.push("br");
-          return <td key={col} className={classes.join(' ')}>
-                   {m.get(tokey(row, col))}
-                 </td>;
+          return <th key={col}>{col+1}</th>
         })}
       </tr>
+    ).concat(Array.from(Array(SIDE_LENGTH), (_v, row) => {
+      return (
+        <tr key={row}>
+          <th key="-1">{row+1}</th>
+          {Array.from(Array(SIDE_LENGTH), (_v, col) => {
+            const classes = [];
+            if (row === 0 || (row !== 0 && lookup[row][col] !== lookup[row-1][col]))
+              classes.push("bt");
+            if (row === SIDE_LENGTH-1 || (row !== SIDE_LENGTH-1 && lookup[row][col] !== lookup[row+1][col]))
+              classes.push("bb");
+            if (col === 0 || (col !== 0 && lookup[row][col] !== lookup[row][col-1]))
+              classes.push("bl");
+            if (col === SIDE_LENGTH-1 || (col !== SIDE_LENGTH-1 && lookup[row][col] !== lookup[row][col+1]))
+              classes.push("br");
+            return <td data-row={row} data-col={col} data-region={lookup[row][col]} key={col} className={classes.join(' ')}
+                       onMouseDown={this.handleOnMouseDown}>
+                     {cells[tokey(row, col)]}
+                   </td>;
+          })}
+        </tr>
+      );
+    }));
+    return (
+      <div className="App">
+        <table>
+          <tbody>
+            {table_rows}
+          </tbody>
+        </table>
+      </div>
     );
-  }));
-  return (
-    <div className="App">
-      <table>
-        <tbody>
-          {table_rows}
-        </tbody>
-      </table>
-    </div>
-  );
+  }
 }
 
 export default App;

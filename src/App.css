@@ -46,11 +46,13 @@
 table {
     /* border: solid 1px; */
     border-collapse: collapse;
+    user-select: none;
 }
 
 td {
-    width: 20px;
-    height: 20px;
+    position: relative;
+    width: 30px;
+    height: 30px;
 }
 
 td:not(:first-child) {
@@ -71,4 +73,12 @@ td.bt {
 
 td.bb {
     border-bottom: var(--thick-border-style);
+}
+
+td::after {
+  content: attr(data-region);
+  font-size: 75%;
+  position: absolute;
+  top: 0;
+  left: 0;
 }
