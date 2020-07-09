@@ -1,4 +1,5 @@
 import { get_regions, generate_lookup } from './star_battle.js'
+import { JsonMap } from './json_map.js'
 
 test('retrieve distinct regions', () => {
   const game_str = `
@@ -22,7 +23,7 @@ test('retrieve distinct regions', () => {
 |     | |     |   | |
 + +-+-+ +-+-+ +-+-+ +
 | |         |       |
-+-+-+-+-+-+-+-+-+-+-+`
++-+-+-+-+-+-+-+-+-+-+`;
 
   const regions = get_regions(game_str);
   expect(regions).toHaveLength(10);
@@ -30,8 +31,44 @@ test('retrieve distinct regions', () => {
   const region_lookup = generate_lookup(regions);
   expect(region_lookup[0][0] === 'A');
 
-  console.log(region_lookup.map(a => a.join('')).join('\n'));
+const expected_region_lookup = `
+AAAABBBBCC
+ABBABDBDCC
+AEBABDDDDC
+AEBBBBCCCC
+AEEBBFCCCC
+AAEFFFGGCC
+AHIIIFFGJJ
+HHIIIIIGGJ
+HHHIJJJGGJ
+HIIIIIJJJJ`;
+  expect(region_lookup.map(a => a.join('')).join('\n')).toBe(expected_region_lookup.trim());
 });
+
+function foo(regions) {
+  const regionD = regions[3];
+  for (let i=0;i<regionD.length;++i) {
+    const [r1, c1] = regionD[i];
+    for (let j=i+1;j<regionD.length;++j) {
+      const [r2, c2] = regionD[j];
+      if (Math.abs(r1-r2) <= 1 && Math.abs(c1-c2) <= 1) continue;
+      const blanks = [];
+      const get_surrounding_cells = (r, c) => {
+        const result = [];
+        for (let dr=-1;dr<=1;++dr) {
+          for (let dc=-1;dc<=1;++dc) {
+            if (dr == 0 && dc == 0) continue;
+            result.push([r+dr, c+dc]);
+          }
+        }
+        return result;
+      };
+      const blanks1 = get_surrounding_cells(r1, c1);
+      const blanks2 = get_surrounding_cells(r2, c2);
+    }
+  }
+}
+
 
 /*
 Can I get it to recognize when stars are all accounted for in a
@@ -112,4 +149,31 @@ Then the cells immediately around it must all be blank.
 pic
 Also,
 the other star in that column has to be from region X, so the rest of the column must be clear.
+*/
+
+/*
+
+what should the function look like?
+Given a board, and a set of which cells are clear / have stars, come up with a list of logical deductions, plus the associated reasoning with each deduction.
+
+do_deduction
+
+Immediate deduction is looking at possible ways of filling rows, columns, and regions, and what's determined from that. Also, looking at groups of rows, columns, or regions, and looking at possible ways of filling them. No proof by contradiction.
+
+This can be repeated until there are no further obvious deductions.
+
+
+
+Can go from both directions! You can go by contradiction, or you can look at all the possible ways to fill with stars, look at what's clear around them, and then find what deductions stay consistent across all possibilities. I should also do this. This feels "second order", but isn't too bad I think.
+
+
+for each row, column, and region
+get undetermined cells, and how many stars remaining to place.
+get possible placements
+
+
+
+
+
+
 */
