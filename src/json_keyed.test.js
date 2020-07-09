@@ -19,4 +19,8 @@ test('json set', () => {
   expect(s.size).toBe(1);
   s.add([1, 2]);
   expect(s.size).toBe(2);
+  s.pop();
+  expect(s.size).toBe(1);
+  s.pop();
+  expect(s.size).toBe(0);
 });

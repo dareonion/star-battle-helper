@@ -1,5 +1,5 @@
 import { get_regions, generate_lookup } from './star_battle.js'
-import { JsonMap } from './json_keyed.js'
+import { JsonMap, JsonSet } from './json_keyed.js'
 
 test('retrieve distinct regions', () => {
   const game_str = `
@@ -30,7 +30,7 @@ test('retrieve distinct regions', () => {
 
   const region_lookup = generate_lookup(regions);
   expect(region_lookup[0][0] === 'A');
-
+  console.log(regions[5]);
 const expected_region_lookup = `
 AAAABBBBCC
 ABBABDBDCC
@@ -44,6 +44,116 @@ HHHIJJJGGJ
 HIIIIIJJJJ`;
   expect(region_lookup.map(a => a.join('')).join('\n')).toBe(expected_region_lookup.trim());
 });
+
+function get_possible_star_count(game, current_state, cells) {
+  // might be impossible. e.g., if the current state has 3 stars in a
+  // region, then this is already kind of a weird thing to look for.
+
+  // check based on rows intersected, columns intersected, and regions intersected
+}
+
+function get_surrounding_cells(r, c) {
+  const result = [];
+  for (let dr=-1;dr<=1;++dr) {
+    for (let dc=-1;dc<=1;++dc) {
+      if (dr == 0 && dc == 0) continue;
+      result.push([r+dr, c+dc]);
+    }
+  }
+  return result;
+}
+
+function get_constructive_deductions(game, current_state, cells, num_stars) {
+  // would be nice to be able to specify a set of cells and the logic
+  // can actually deduce exactly how many stars there could be among
+  // those cells.
+
+  // let's just assume current_state is correct.
+  const cell_possibilities_map = new JsonMap();
+  for (let i=0;i<cells.length;++i) {
+    const [r1, c1] = cells[i];
+    for (let j=i+1;j<cells.length;++j) {
+      const [r2, c2] = cells[j];
+      if (Math.abs(r1-r2) <= 1 && Math.abs(c1-c2) <= 1) continue;
+      const stars = JsonSet.of([[r1, c1], [r2, c2]]);
+      const blanks = new JsonSet();
+      blanks.update(
+        get_surrounding_cells(r1, c1),
+        get_surrounding_cells(r2, c2));
+      for (const [r, c] of stars) {
+        if (!cell_possibilities_map.has([r, c])) {
+          cell_possibilities_map.set([r, c], new Set());
+        }
+        cell_possibilities_map.get([r, c]).add("star");
+      }
+      for (const [r, c] of blanks) {
+        if (!cell_possibilities_map.has([r, c])) {
+          cell_possibilities_map.set([r, c], new Set());
+        }
+        cell_possibilities_map.get([r, c]).add("blank");
+      }
+    }
+  }
+
+  const candidates = new JsonSet();
+  for (const [cell, poss_set] of cell_possibilities_map) {
+    if (poss_set.size > 1) continue;
+    candidates.add(cell);
+  }
+  for (let i=0;i<cells.length;++i) {
+    const [r1, c1] = cells[i];
+    for (let j=i+1;j<cells.length;++j) {
+      const [r2, c2] = cells[j];
+      if (Math.abs(r1-r2) <= 1 && Math.abs(c1-c2) <= 1) continue;
+      const stars = JsonSet.of([[r1, c1], [r2, c2]]);
+      const blanks = new JsonSet();
+      blanks.update(
+        get_surrounding_cells(r1, c1),
+        get_surrounding_cells(r2, c2));
+      // console.log("stars", Array.from(stars));
+      // console.log("blanks", Array.from(blanks));
+      // console.log(blanks.has([1, 6]));
+      Array.from(candidates).forEach((cand) => {
+        if (!stars.has(cand) && !blanks.has(cand)) candidates.delete(cand);
+      });
+    }
+  }
+  const result = Array.from(candidates).map((cand) => {
+    const [r, c] = cand;
+    return [r, c, cell_possibilities_map.get(cand).entries().next().value[0]];
+  });
+  return result;
+}
+
+const EMPTY_STATE_10 = Array(10).fill(' '.repeat(10)).join('\n');
+
+test('constructive deductions', () => {
+const game_spec = `
+AAAABBBBCC
+ABBABDBDCC
+AEBABDDDDC
+AEBBBBCCCC
+AEEBBFCCCC
+AAEFFFGGCC
+AHIIIFFGJJ
+HHIIIIIGGJ
+HHHIJJJGGJ
+HIIIIIJJJJ`.trim();
+  const regionD = [ [ 1, 5 ], [ 2, 5 ], [ 2, 6 ], [ 2, 7 ], [ 1, 7 ], [ 2, 8 ] ];
+  const deductionsD = get_constructive_deductions(game_spec, EMPTY_STATE_10, regionD, 2);
+  expect(deductionsD.length).toBe(2);
+  expect(deductionsD).toContainEqual([1, 6, "blank"]);
+  expect(deductionsD).toContainEqual([1, 8, "blank"]);
+
+  const regionF = [ [ 4, 5 ], [ 5, 5 ], [ 6, 5 ], [ 6, 6 ], [ 5, 4 ], [ 5, 3 ] ];
+  const deductionsF = get_constructive_deductions(game_spec, EMPTY_STATE_10, regionF, 2);
+  expect(deductionsF.length).toBe(2);
+  expect(deductionsF).toContainEqual([4, 4, 'blank']);
+  expect(deductionsF).toContainEqual([5, 6, 'blank']);
+});
+
+// get_constructive_deductions(game, EMPTY, <regionD>, 2) should specify that [1, 7], and [1, 9] must be clear
+// open question: what should the return format look like? Some sort of mapping of cells to status, or status to cells.
 
 function foo(regions) {
   const regionD = regions[3];
@@ -65,7 +175,6 @@ function foo(regions) {
       };
       const blanks1 = get_surrounding_cells(r1, c1);
       const blanks2 = get_surrounding_cells(r2, c2);
-      
     }
   }
 }
