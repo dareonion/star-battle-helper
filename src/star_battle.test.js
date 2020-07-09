@@ -1,5 +1,5 @@
 import { get_regions, generate_lookup } from './star_battle.js'
-import { JsonMap } from './json_map.js'
+import { JsonMap } from './json_keyed.js'
 
 test('retrieve distinct regions', () => {
   const game_str = `
@@ -65,6 +65,7 @@ function foo(regions) {
       };
       const blanks1 = get_surrounding_cells(r1, c1);
       const blanks2 = get_surrounding_cells(r2, c2);
+      
     }
   }
 }
