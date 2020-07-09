@@ -1,5 +1,8 @@
-import { get_regions, generate_lookup } from './star_battle.js'
-import { JsonMap, JsonSet } from './json_keyed.js'
+import {
+  get_regions,
+  generate_lookup,
+  get_constructive_deductions,
+  get_all_constructive_deductions} from './star_battle.js'
 
 test('retrieve distinct regions', () => {
   const game_str = `
@@ -30,7 +33,6 @@ test('retrieve distinct regions', () => {
 
   const region_lookup = generate_lookup(regions);
   expect(region_lookup[0][0] === 'A');
-  console.log(regions[5]);
 const expected_region_lookup = `
 AAAABBBBCC
 ABBABDBDCC
@@ -52,133 +54,173 @@ function get_possible_star_count(game, current_state, cells) {
   // check based on rows intersected, columns intersected, and regions intersected
 }
 
-function get_surrounding_cells(r, c) {
-  const result = [];
-  for (let dr=-1;dr<=1;++dr) {
-    for (let dc=-1;dc<=1;++dc) {
-      if (dr == 0 && dc == 0) continue;
-      result.push([r+dr, c+dc]);
-    }
-  }
-  return result;
-}
-
-function get_constructive_deductions(game, current_state, cells, num_stars) {
-  // would be nice to be able to specify a set of cells and the logic
-  // can actually deduce exactly how many stars there could be among
-  // those cells.
-
-  // let's just assume current_state is correct.
-  const cell_possibilities_map = new JsonMap();
-  for (let i=0;i<cells.length;++i) {
-    const [r1, c1] = cells[i];
-    for (let j=i+1;j<cells.length;++j) {
-      const [r2, c2] = cells[j];
-      if (Math.abs(r1-r2) <= 1 && Math.abs(c1-c2) <= 1) continue;
-      const stars = JsonSet.of([[r1, c1], [r2, c2]]);
-      const blanks = new JsonSet();
-      blanks.update(
-        get_surrounding_cells(r1, c1),
-        get_surrounding_cells(r2, c2));
-      for (const [r, c] of stars) {
-        if (!cell_possibilities_map.has([r, c])) {
-          cell_possibilities_map.set([r, c], new Set());
-        }
-        cell_possibilities_map.get([r, c]).add("star");
-      }
-      for (const [r, c] of blanks) {
-        if (!cell_possibilities_map.has([r, c])) {
-          cell_possibilities_map.set([r, c], new Set());
-        }
-        cell_possibilities_map.get([r, c]).add("blank");
-      }
-    }
-  }
-
-  const candidates = new JsonSet();
-  for (const [cell, poss_set] of cell_possibilities_map) {
-    if (poss_set.size > 1) continue;
-    candidates.add(cell);
-  }
-  for (let i=0;i<cells.length;++i) {
-    const [r1, c1] = cells[i];
-    for (let j=i+1;j<cells.length;++j) {
-      const [r2, c2] = cells[j];
-      if (Math.abs(r1-r2) <= 1 && Math.abs(c1-c2) <= 1) continue;
-      const stars = JsonSet.of([[r1, c1], [r2, c2]]);
-      const blanks = new JsonSet();
-      blanks.update(
-        get_surrounding_cells(r1, c1),
-        get_surrounding_cells(r2, c2));
-      // console.log("stars", Array.from(stars));
-      // console.log("blanks", Array.from(blanks));
-      // console.log(blanks.has([1, 6]));
-      Array.from(candidates).forEach((cand) => {
-        if (!stars.has(cand) && !blanks.has(cand)) candidates.delete(cand);
-      });
-    }
-  }
-  const result = Array.from(candidates).map((cand) => {
-    const [r, c] = cand;
-    return [r, c, cell_possibilities_map.get(cand).entries().next().value[0]];
-  });
-  return result;
-}
-
 const EMPTY_STATE_10 = Array(10).fill(' '.repeat(10)).join('\n');
 
 test('constructive deductions', () => {
-const game_spec = `
-AAAABBBBCC
-ABBABDBDCC
-AEBABDDDDC
-AEBBBBCCCC
-AEEBBFCCCC
-AAEFFFGGCC
-AHIIIFFGJJ
-HHIIIIIGGJ
-HHHIJJJGGJ
-HIIIIIJJJJ`.trim();
   const regionD = [ [ 1, 5 ], [ 2, 5 ], [ 2, 6 ], [ 2, 7 ], [ 1, 7 ], [ 2, 8 ] ];
-  const deductionsD = get_constructive_deductions(game_spec, EMPTY_STATE_10, regionD, 2);
+  const deductionsD = get_constructive_deductions(regionD, 2);
   expect(deductionsD.length).toBe(2);
   expect(deductionsD).toContainEqual([1, 6, "blank"]);
   expect(deductionsD).toContainEqual([1, 8, "blank"]);
 
   const regionF = [ [ 4, 5 ], [ 5, 5 ], [ 6, 5 ], [ 6, 6 ], [ 5, 4 ], [ 5, 3 ] ];
-  const deductionsF = get_constructive_deductions(game_spec, EMPTY_STATE_10, regionF, 2);
+  const deductionsF = get_constructive_deductions(regionF, 2);
   expect(deductionsF.length).toBe(2);
   expect(deductionsF).toContainEqual([4, 4, 'blank']);
   expect(deductionsF).toContainEqual([5, 6, 'blank']);
+
+  const game_str = `
++-+-+-+-+-+-+-+-+-+-+
+|       |       |   |
++ +-+-+ + +-+ +-+   +
+| |   | | | | | |   |
++ +-+ + + + +-+ +-+ +
+| | | | | |       | |
++ + + +-+ +-+-+-+-+ +
+| | |       |       |
++ + +-+   +-+       +
+| |   |   | |       |
++ +-+ +-+-+ +-+-+   +
+|   | |     |   |   |
++ +-+-+-+-+ +-+ +-+-+
+| | |     |   | |   |
++-+ +     +-+-+ +-+ +
+|   |         |   | |
++   +-+ +-+-+-+   + +
+|     | |     |   | |
++ +-+-+ +-+-+ +-+-+ +
+| |         |       |
++-+-+-+-+-+-+-+-+-+-+`;
+
+  const regions = get_regions(game_str);
+
+  const all_deductions = get_all_constructive_deductions(regions, []);
+  expect(all_deductions).toContainEqual([1, 6, "blank"]);
+  expect(all_deductions).toContainEqual([1, 8, "blank"]);
+  expect(all_deductions).toContainEqual([4, 4, 'blank']);
+  expect(all_deductions).toContainEqual([5, 6, 'blank']);
+
+  const current_state = all_deductions;
+  while (true) {
+    const next_deductions = get_all_constructive_deductions(regions, current_state);
+    if (next_deductions.length === 0) break;
+    // console.log(next_deductions);
+    current_state.push(...next_deductions);
+  }
 });
 
-// get_constructive_deductions(game, EMPTY, <regionD>, 2) should specify that [1, 7], and [1, 9] must be clear
-// open question: what should the return format look like? Some sort of mapping of cells to status, or status to cells.
-
-function foo(regions) {
-  const regionD = regions[3];
-  for (let i=0;i<regionD.length;++i) {
-    const [r1, c1] = regionD[i];
-    for (let j=i+1;j<regionD.length;++j) {
-      const [r2, c2] = regionD[j];
-      if (Math.abs(r1-r2) <= 1 && Math.abs(c1-c2) <= 1) continue;
-      const blanks = [];
-      const get_surrounding_cells = (r, c) => {
-        const result = [];
-        for (let dr=-1;dr<=1;++dr) {
-          for (let dc=-1;dc<=1;++dc) {
-            if (dr == 0 && dc == 0) continue;
-            result.push([r+dr, c+dc]);
-          }
-        }
-        return result;
-      };
-      const blanks1 = get_surrounding_cells(r1, c1);
-      const blanks2 = get_surrounding_cells(r2, c2);
+function parse_state(state_str) {
+  const rows = state_str.split('\n');
+  const result = [];
+  for (let r=0;r<10;++r) {
+    for (let c=0;c<10;++c) {
+      const ch = rows[r].charAt(c);
+      if (ch === ' ') {
+        continue
+      } else if (ch === '.') {
+        result.push([r, c, 'blank']);
+      } else if (ch === '*') {
+        result.push([r, c, 'star']);
+      }
     }
   }
+  return result;
 }
 
+function state_to_str(state) {
+  const result_array = Array.from(Array(10), () => Array(10).fill(' '));
+  for (const [r, c, mark] of state) {
+    if (mark === 'blank')
+      result_array[r][c] = '.';
+    else if (mark === 'star')
+      result_array[r][c] = '*';
+  }
+  return result_array.map((arr) => arr.join('')).join('\n');
+}
+
+test('constructive deductions 2', () => {
+  const game_str = `
++-+-+-+-+-+-+-+-+-+-+
+| |             |   |
++ +       +-+-+-+   +
+| |       |     |   |
++ +-+-+   + +-+-+   +
+| |   |   | | |     |
++ +   +   + + +     +
+| |   |   | | |     |
++ +-+ +-+-+ + +     +
+|   | |   | | |     |
++   +-+ +-+ + +-+-+-+
+|   |   |   |   |   |
++   +   +   +   +   +
+|   |   |   |   |   |
++-+ +   +-+-+   +-+ +
+| | |   |   |     | |
++ + +-+ +   +     + +
+| |   | |   |     | |
++ +-+-+-+   +-+   +-+
+|       |     |     |
++-+-+-+-+-+-+-+-+-+-+`
+  const regions = get_regions(game_str);
+  const current_state = [];
+  while (true) {
+    const next_deductions = get_all_constructive_deductions(regions, current_state);
+    if (next_deductions.length === 0) break;
+    // console.log(next_deductions);
+    current_state.push(...next_deductions);
+  }
+  current_state.sort();
+
+  const state = parse_state(`
+          
+...       
+      ..  
+ ..... .  
+..*.*.....
+......    
+.*. . ....
+... .   . 
+*... .... 
+..  ..*...`.slice(1));
+
+  while (true) {
+    const next_deductions = get_all_constructive_deductions(regions, state);
+    if (next_deductions.length === 0) break;
+    state.push(...next_deductions);
+  }
+});
+
+test('constructive deductions 3', () => {
+  const game_str = `
++-+-+-+-+-+-+-+-+-+-+
+|       |           |
++-+-+-+ +-+-+     +-+
+|   | |     |     | |
++   + +-+-+ + +-+-+ +
+|   |     | | |   | |
++-+ + +-+ + +-+ +-+ +
+| | | | | |   | |   |
++ + +-+ +-+ +-+ +-+ +
+| | | |     |   | | |
++ +-+ +   +-+-+-+ + +
+|     |   | |     | |
++   +-+-+-+ +-+-+ + +
+|   |   |       | | |
++   +   + +-+ +-+ + +
+|   |   | | | |   | |
++   +-+ +-+ + +-+ +-+
+|     |     |   |   |
++-+-+-+     +-+-+   +
+|               |   |
++-+-+-+-+-+-+-+-+-+-+`
+  const regions = get_regions(game_str);
+  const current_state = [];
+  while (true) {
+    const next_deductions = get_all_constructive_deductions(regions, current_state);
+    if (next_deductions.length === 0) break;
+    current_state.push(...next_deductions);
+  }
+});
 
 /*
 Can I get it to recognize when stars are all accounted for in a
