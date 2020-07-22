@@ -1,6 +1,7 @@
 import React from 'react';
 import logo from './logo.svg';
 import './App.css';
+import { JsonMap, JsonSet } from './json_keyed.js'
 
 // we can represent state in a number of ways. A relatively sparse representation is just as a sequence of moves and a side length.
 const moves = [
@@ -16,13 +17,15 @@ class App extends React.Component {
     this.side_length = 10;
     this.state = {
       cells: Array(this.side_length*this.side_length).fill(''),
-      lookup_array: ["A", "B", "B", "A", "C", "B", "B", "B", "B"]
+      lookup_array: ["A", "B", "B", "A", "C", "B", "B", "B", "B"],
+      move_history: [],
+      current_move: 0,
     };
     this.isMouseDown = false;
     this.handleOnMouseDown = this.handleOnMouseDown.bind(this);
     window.oncontextmenu = (e) => {
       e.preventDefault();
-    }
+    };
   }
 
   tokey(row, col) {
@@ -32,6 +35,9 @@ class App extends React.Component {
   fromkey(k) {
     const col = k % this.side_length;
     return [(k-col) / this.side_length, col];
+  }
+
+  makeMove(move) {
   }
 
   // TODO(2020/07/08): this is a mess.
@@ -46,13 +52,18 @@ class App extends React.Component {
     const clientx = event.clientX;
     const clienty = event.clientY;
     const elt = document.elementFromPoint(clientx, clienty);
+    const current_move_set = new JsonSet();
     if (elt.tagName === 'TD') {
       const row = parseInt(elt.getAttribute('data-row'));
       const col = parseInt(elt.getAttribute('data-col'));
       const cells = this.state.cells.slice();
-      // mark row col with the proper symbol
-      cells[this.tokey(row, col)] = symbol;
-      this.setState({cells: cells});
+
+      if (cells[this.tokey(row, col)] !== symbol) {
+        // mark row col with the proper symbol
+        current_move_set.add([row, col, cells[this.tokey(row, col)], symbol]);
+        cells[this.tokey(row, col)] = symbol;
+        this.setState({cells: cells});
+      }
     }
 
     // event.button === 0 -> left click
@@ -72,20 +83,63 @@ class App extends React.Component {
         const row = parseInt(elt.getAttribute('data-row'));
         const col = parseInt(elt.getAttribute('data-col'));
         const cells = this.state.cells.slice();
-        // mark row col with the proper symbol
-        cells[this.tokey(row, col)] = symbol;
-        this.setState({cells: cells});
+
+        if (cells[this.tokey(row, col)] !== symbol) {
+          // mark row col with the proper symbol
+          current_move_set.add([row, col, cells[this.tokey(row, col)], symbol]);
+          cells[this.tokey(row, col)] = symbol;
+          this.setState({cells: cells});
+        }
       }
     };
     document.addEventListener('mousemove', onMouseMove);
     document.addEventListener(
       'mouseup',
       () => {
+        if (current_move_set.size > 0) {
+          const current_move = this.state.current_move;
+          const move_history = this.state.move_history.slice(0, current_move);
+          move_history.push(Array.from(current_move_set));
+          this.setState({
+            move_history: move_history,
+            current_move: current_move+1,
+          });
+        }
         document.removeEventListener('mousemove', onMouseMove);
         this.isMouseDown = false;
       },
       {once: true},
     );
+  }
+
+  undo() {
+    const move_history = this.state.move_history.slice();
+    const current_move = this.state.current_move;
+    if (current_move === 0) return;
+    const cells = this.state.cells.slice();
+    const last_move = move_history[current_move-1];
+    for (let [row, col, oldsym, newsym] of last_move) {
+      cells[this.tokey(row, col)] = oldsym;
+    }
+    this.setState({
+      current_move: current_move-1,
+      cells: cells,
+    });
+  }
+
+  redo() {
+    const move_history = this.state.move_history.slice();
+    const current_move = this.state.current_move;
+    if (move_history.length <= current_move) return;
+
+    const cells = this.state.cells.slice();
+    for (let [row, col, oldsym, newsym] of move_history[current_move]) {
+      cells[this.tokey(row, col)] = newsym;
+    }
+    this.setState({
+      current_move: current_move+1,
+      cells: cells,
+    });
   }
 
   render() {
@@ -122,6 +176,8 @@ class App extends React.Component {
     }));
     return (
       <div className="App">
+        <button onClick={() => this.undo()}>undo</button>
+        <button onClick={() => this.redo()}>redo</button>
         <table>
           <tbody>
             {table_rows}
