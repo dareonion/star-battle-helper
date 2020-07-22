@@ -142,8 +142,13 @@ class App extends React.Component {
     });
   }
 
+  deduce() {
+  }
+
   render() {
     const cells = this.state.cells.slice();
+    const current_move = this.state.current_move;
+    const move_history = this.state.move_history;
     const lookup = Array.from(Array(this.side_length), (_v, row) => this.state.lookup_array.slice(row*this.side_length, (row+1)*this.side_length));
     const table_rows = Array.of(
       <tr key="-1">
@@ -176,8 +181,9 @@ class App extends React.Component {
     }));
     return (
       <div className="App">
-        <button onClick={() => this.undo()}>undo</button>
-        <button onClick={() => this.redo()}>redo</button>
+        <button disabled={current_move === 0} onClick={() => this.undo()}>undo</button>
+        <button disabled={current_move >= move_history.length} onClick={() => this.redo()}>redo</button>
+        <button onClick={() => this.deduce()}>deduce</button>
         <table>
           <tbody>
             {table_rows}
